@@ -8,6 +8,9 @@
 const player = "p"
 const wall = "w"
 const door = "d"
+const box = "b"
+const key = "k"
+const locked_door = "l"
 
 setLegend(
   [player, bitmap`
@@ -60,7 +63,58 @@ LLLLLLLLLLLLLLLL`],
 ..CCCCCCCCCCCC..
 ..CCCCCCCCCCCC..
 ..CCCCCCCCCCCC..
-..CCCCCCCCCCCC..`]
+..CCCCCCCCCCCC..`],
+  [box, bitmap`
+9999999999999999
+99............99
+999...........99
+9.99.........9.9
+9...99.......9.9
+9....99....99..9
+9.....99..99...9
+9......999.....9
+9.......99.....9
+9.......999....9
+9......9..99...9
+9.....9....9...9
+9....9......9..9
+9..99.......99.9
+999..........999
+9999999999999999`],
+  [key, bitmap`
+................
+.......66666....
+.......66666....
+.......66.......
+.......66.......
+.......6666.....
+.......66.......
+.......66.......
+.......66.......
+.....66666......
+....6666666.....
+....66...66.....
+....66...66.....
+....66...66.....
+....6666666.....
+.....66666......`],
+  [locked_door, bitmap`
+................
+................
+......CCC.......
+......CCCC......
+..6666CCCCC.....
+...6666CCCCLL...
+...C6666CCLLL...
+...CCC636LLLC...
+...CCCC3333LC...
+...CCC3336666...
+...CCLLL36666...
+...CLLLCCC666...
+...CLLCCCCC66...
+...LLLCCCCCC6...
+...LLCCCCCCCC...
+...LCCCCCCCCC...`]
 )
 
 setSolids([player, wall])
@@ -70,31 +124,58 @@ const levels = [
   map`
 ...ww
 .w.ww
-.....
+....k
 wwdwp`,
   map`
 d...w.
 www...
 w....w
-w.....
+wk....
 wpw...`,
   map`
 ..w...
 w.....
 ..dwww
-......
+..k...
 ..p...
 ..w.w.`,
+  map`
+.......w.
+pw..w...k
+....d...w
+.........
+..w..w...
+w..w.....`,
+  map`
+..........kw..
+.......w....w.
+.w............
+...w..........
+......p..w....
+..............
+w.............
+..w...w.......
+.w...........w
+....dw.....w..
+w........w....
+.w............`,
+  map`
+..w....
+.....w.
+ww.k...
+p..d...
+...w...`
 ]
 
+let hasKey = false;
+
 const currentLevel = levels[level];
-setMap(levels[level])
+setMap(levels[level]);
 
 setPushables({
-  [player]: []
-})
+  [player]: [box]
+});
 
-// Function to move player until collision or edge of map
 function movePlayer(direction) {
   let player = getFirst("p");
   let moved = true;
@@ -113,27 +194,33 @@ function movePlayer(direction) {
       newX += 1;
     }
 
-    // Check for collision with solid objects or map boundaries
-    if (newX < 0 || newY < 0 || newX >= width() || newY >= height() || getTile(newX, newY).some(sprite => sprite.type === "w")) {
+    if (newX < 0 || newY < 0 || newX >= width() || newY >= height() || getTile(newX, newY).some(sprite => sprite.type === "w" || sprite.type === "l")) {
       moved = false;
     } else {
       player.x = newX;
       player.y = newY;
+      
+      // Collect key if present
+      if (getTile(newX, newY).some(sprite => sprite.type === "k")) {
+        hasKey = true;
+        getTile(newX, newY).forEach(sprite => {
+          if (sprite.type === "k") sprite.remove();
+        });
+      }
     }
   }
 }
 
-// Set up input controls
 onInput("w", () => movePlayer("up"));
 onInput("a", () => movePlayer("left"));
 onInput("s", () => movePlayer("down"));
 onInput("d", () => movePlayer("right"));
 
-
 afterInput(() => {
-  if(tilesWith(door, player).length > 0) {
+  if (tilesWith(door, player).length > 0 && hasKey) {
     level += 1;
     const currentLevel = levels[level];
+    hasKey = false;
 
     if (currentLevel !== undefined) {
       setMap(currentLevel);
@@ -141,4 +228,4 @@ afterInput(() => {
       addText("you win!", { y: 4, color: color`3` });
     }
   }
-})
+});
