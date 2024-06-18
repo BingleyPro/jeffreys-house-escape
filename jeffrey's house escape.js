@@ -164,7 +164,9 @@ w........w....
 .....w.
 ww.k...
 p..d...
-...w...`
+...w...`,
+  map`
+p.kdw`,
 ]
 
 let hasKey = false;
@@ -200,7 +202,6 @@ function movePlayer(direction) {
       player.x = newX;
       player.y = newY;
       
-      // Collect key if present
       if (getTile(newX, newY).some(sprite => sprite.type === "k")) {
         hasKey = true;
         getTile(newX, newY).forEach(sprite => {
