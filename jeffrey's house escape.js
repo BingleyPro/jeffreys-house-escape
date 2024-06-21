@@ -272,44 +272,52 @@ afterInput(() => {
 });
 
 /* --- FUNCTIONS --- */
-function switchMode() {
-  if (mode == "freeplay") {
-    keysCollected = 0
 
-    // Generate a level!
-    let newLevel;
-    do {
-      newLevel = generateLevel(10, 10); // or any other size
-    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
-    setMap(map`${newLevel}`);
-
-  } else if (mode === "progression") {
-    currentLevelIndex++;
-    if (currentLevelIndex < levels.length) {
-      setMap(levels[currentLevelIndex]); // Move to the next progression level
-    } else {
-      addText("You win!", { x: 4, y: 4, color: color`3` });
-    }
+// Generate a new level for freeplay mode
+function generateLevel(width, height) {
+  let newLevel = [];
+  for (let y = 0; y < height; y++) {
+    newLevel.push(new Array(width).fill("."));
   }
+
+  function randomPosition() {
+    return {
+      x: Math.floor(Math.random() * width),
+      y: Math.floor(Math.random() * height)
+    };
+  }
+
+  let playerPos = randomPosition();
+  let doorPos = randomPosition();
+  let keyPos = randomPosition();
+
+  while (
+    (playerPos.x === doorPos.x && playerPos.y === doorPos.y) ||
+    (playerPos.x === keyPos.x && playerPos.y === keyPos.y) ||
+    (doorPos.x === keyPos.x && doorPos.y === keyPos.y)
+  ) {
+    doorPos = randomPosition();
+    keyPos = randomPosition();
+  }
+
+  newLevel[playerPos.y][playerPos.x] = "p";
+  newLevel[doorPos.y][doorPos.x] = "d";
+  newLevel[keyPos.y][keyPos.x] = "k";
+
+  let wallCount = Math.floor(width * height * 0.2);
+
+  for (let i = 0; i < wallCount; i++) {
+    let wallPos = randomPosition();
+    while (newLevel[wallPos.y][wallPos.x] !== ".") {
+      wallPos = randomPosition();
+    }
+    newLevel[wallPos.y][wallPos.x] = "w";
+  }
+
+  return newLevel.map(row => row.join("")).join("\n");
 }
 
-function nextLevel() {
-  if (mode == "freeplay") {
-    // Generate a level!
-    let newLevel;
-    do {
-      newLevel = generateLevel(10, 10); // or any other size
-    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
-    setMap(map`${newLevel}`);
 
-  } else if (mode == "progression") {
-    currentLevelIndex++;
-    if (currentLevelIndex < levels.length) {
-      setMap(levels[currentLevelIndex])
-    } else {
-      addText("You win!", { x: 4, y: 4, color: color`3` });
-    }
-  }
 
 /* --- PATH FINDING & GENERATING FUNCTIONS --- */
 function bfs(start, end, grid) {
@@ -376,47 +384,43 @@ function isLevelSolvable(grid) {
   return bfs(key, door, grid);
 }
 
-// Generate a new level for freeplay mode
-function generateLevel(width, height) {
-  let newLevel = [];
-  for (let y = 0; y < height; y++) {
-    newLevel.push(new Array(width).fill("."));
-  }
 
-  function randomPosition() {
-    return {
-      x: Math.floor(Math.random() * width),
-      y: Math.floor(Math.random() * height)
-    };
-  }
+function switchMode() {
+  if (mode == "freeplay") {
+    keysCollected = 0
 
-  let playerPos = randomPosition();
-  let doorPos = randomPosition();
-  let keyPos = randomPosition();
+    // Generate a level!
+    let newLevel;
+    do {
+      newLevel = generateLevel(10, 10); // or any other size
+    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
+    setMap(map`${newLevel}`);
 
-  while (
-    (playerPos.x === doorPos.x && playerPos.y === doorPos.y) ||
-    (playerPos.x === keyPos.x && playerPos.y === keyPos.y) ||
-    (doorPos.x === keyPos.x && doorPos.y === keyPos.y)
-  ) {
-    doorPos = randomPosition();
-    keyPos = randomPosition();
-  }
-
-  newLevel[playerPos.y][playerPos.x] = "p";
-  newLevel[doorPos.y][doorPos.x] = "d";
-  newLevel[keyPos.y][keyPos.x] = "k";
-
-  let wallCount = Math.floor(width * height * 0.2);
-
-  for (let i = 0; i < wallCount; i++) {
-    let wallPos = randomPosition();
-    while (newLevel[wallPos.y][wallPos.x] !== ".") {
-      wallPos = randomPosition();
+  } else if (mode === "progression") {
+    currentLevelIndex++;
+    if (currentLevelIndex < levels.length) {
+      setMap(levels[currentLevelIndex]); // Move to the next progression level
+    } else {
+      addText("You win!", { x: 4, y: 4, color: color`3` });
     }
-    newLevel[wallPos.y][wallPos.x] = "w";
   }
-
-  return newLevel.map(row => row.join("")).join("\n");
 }
+
+function nextLevel() {
+  if (mode == "freeplay") {
+    // Generate a level!
+    let newLevel;
+    do {
+      newLevel = generateLevel(10, 10); // or any other size
+    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
+    setMap(map`${newLevel}`);
+
+  } else if (mode == "progression") {
+    currentLevelIndex++;
+    if (currentLevelIndex < levels.length) {
+      setMap(levels[currentLevelIndex])
+    } else {
+      addText("You win!", { x: 4, y: 4, color: color`3` });
+    }
+  }
 }
