@@ -6,21 +6,23 @@
 (the date above refers to the 19th of June, 2024)
 */
 
-// Use WASD or the left Sprig d-pad to move the player! Get the key and make it to the end.
-// For more information, check out https://github.com/BingleyPro/jeffreys-house-escape
-
 // Define sprites and their corresponding characters
-const player = "p"
-const wall = "w"
-const door = "d"
-const key = "k"
-const freeplayPortal = "f"
-const progressionPortal = "g"
+const player = "p";
+const wall = "w";
+const door = "d";
+const key = "k";
+const freeplayPortal = "f";
+const progressionPortal = "g";
 
 // Game variables
-let score = 0
-let mode = "freeplay" // default mode
-let keysCollected = 0
+let score = 0;
+let mode = "freeplay"; // default mode
+let keysCollected = 0;
+let levelSize = 10; // Initial level size
+let maxWallsPercentage = 0.3; // Maximum percentage of walls in the level
+let currentLevelIndex = 0;
+let timerInterval;
+let timerSeconds = 0;
 
 // Define sprite bitmaps
 setLegend(
@@ -126,15 +128,15 @@ LLLLLLLLLLLLLLLL`],
 ..557777777755..
 ...5577777755...
 ....55555555....`]
-)
+);
 
-setSolids([player, wall])
+setSolids([player, wall]);
 
 const startLevel = map`
 fwwwg
 .www.
 ..p..
-wwwww` // Mode choosing
+wwwww`; // Mode choosing
 
 // Define levels for progression mode
 const levels = [
@@ -190,10 +192,9 @@ p..d...
 ...w...`,
   map`
 p.kdw`,
-]
+];
 
-let currentLevelIndex = 0
-setMap(startLevel)
+setMap(startLevel);
 
 // Function to move the player in one direction as far as possible
 function movePlayer(direction) {
@@ -215,16 +216,24 @@ function movePlayer(direction) {
     }
 
     // Check boundaries and collision with walls
-    if (newX < 0 || newY < 0 || newX >= width() || newY >= height() || getTile(newX, newY).some(sprite => sprite.type === "w")) {
+    if (
+      newX < 0 ||
+      newY < 0 ||
+      newX >= width() ||
+      newY >= height() ||
+      getTile(newX, newY).some((sprite) => sprite.type === "w")
+    ) {
       moved = false;
     } else {
       player.x = newX;
       player.y = newY;
 
       // Collect keys
-      if (getTile(newX, newY).some(sprite => sprite.type === "k")) {
+      if (
+        getTile(newX, newY).some((sprite) => sprite.type === "k")
+      ) {
         keysCollected++;
-        getTile(newX, newY).forEach(sprite => {
+        getTile(newX, newY).forEach((sprite) => {
           if (sprite.type === "k") sprite.remove();
         });
       }
@@ -238,27 +247,36 @@ onInput("a", () => movePlayer("left"));
 onInput("s", () => movePlayer("down"));
 onInput("d", () => movePlayer("right"));
 
+// Reset player to starting position (i key)
+onInput("i", () => {
+  setMap(startLevel);
+  keysCollected = 0;
+  score = 0;
+  timerSeconds = 0;
+  clearInterval(timerInterval);
+  updateScore();
+  updateTimer();
+});
+
 // After each input, check conditions for level completion or mode change
 afterInput(() => {
   // Check for portal tiles to switch modes
-
   if (tilesWith(freeplayPortal, player).length > 0) {
     // Freeplay mode selected
-    mode = "freeplay"
-    switchMode()
-
+    mode = "freeplay";
+    switchMode();
   } else if (tilesWith(progressionPortal, player).length > 0) {
     // Progression mode selected
-    mode = "progression"
-    switchMode()
+    mode = "progression";
+    switchMode();
   }
 
   // Check conditions for completing a level in freeplay mode
   if (mode == "freeplay") {
     if (tilesWith(door, player).length > 0 && tilesWith(key) == 0) {
       score++;
-      keysCollected = 0
-      nextLevel()
+      keysCollected = 0;
+      nextLevel();
     }
   }
 
@@ -266,9 +284,11 @@ afterInput(() => {
     if (tilesWith(door, player).length > 0 && tilesWith(key) == 0) {
       score++;
       keysCollected = 0;
-      nextLevel()
+      nextLevel();
     }
   }
+
+  updateScore();
 });
 
 /* --- FUNCTIONS --- */
@@ -283,7 +303,7 @@ function generateLevel(width, height) {
   function randomPosition() {
     return {
       x: Math.floor(Math.random() * width),
-      y: Math.floor(Math.random() * height)
+      y: Math.floor(Math.random() * height),
     };
   }
 
@@ -292,9 +312,12 @@ function generateLevel(width, height) {
   let keyPos = randomPosition();
 
   while (
-    (playerPos.x === doorPos.x && playerPos.y === doorPos.y) ||
-    (playerPos.x === keyPos.x && playerPos.y === keyPos.y) ||
-    (doorPos.x === keyPos.x && doorPos.y === keyPos.y)
+    playerPos.x === doorPos.x &&
+    playerPos.y === doorPos.y &&
+    playerPos.x === keyPos.x &&
+    playerPos.y === keyPos.y &&
+    doorPos.x === keyPos.x &&
+    doorPos.y === keyPos.y
   ) {
     doorPos = randomPosition();
     keyPos = randomPosition();
@@ -304,7 +327,7 @@ function generateLevel(width, height) {
   newLevel[doorPos.y][doorPos.x] = "d";
   newLevel[keyPos.y][keyPos.x] = "k";
 
-  let wallCount = Math.floor(width * height * 0.2);
+  let wallCount = Math.floor(width * height * maxWallsPercentage);
 
   for (let i = 0; i < wallCount; i++) {
     let wallPos = randomPosition();
@@ -314,64 +337,18 @@ function generateLevel(width, height) {
     newLevel[wallPos.y][wallPos.x] = "w";
   }
 
-  return newLevel.map(row => row.join("")).join("\n");
+  return newLevel.map((row) => row.join("")).join("\n");
 }
 
-
-
-/* --- PATH FINDING & GENERATING FUNCTIONS --- */
-function bfs(start, end, grid) {
-  let queue = [start];
-  let visited = new Set();
-  visited.add(`${start.x},${start.y}`);
-
-  const directions = [
-    { x: 0, y: -1 }, // up
-    { x: 0, y: 1 }, // down
-    { x: -1, y: 0 }, // left
-    { x: 1, y: 0 } // right
-  ];
-
-  while (queue.length > 0) {
-    let { x, y } = queue.shift();
-
-    if (x === end.x && y === end.y) {
-      return true;
-    }
-
-    // Continue in the current direction until hitting a wall
-    for (let dir of directions) {
-      let newX = x;
-      let newY = y;
-
-      while (
-        newX + dir.x >= 0 && newX + dir.x < grid[0].length &&
-        newY + dir.y >= 0 && newY + dir.y < grid.length &&
-        grid[newY + dir.y][newX + dir.x] !== 'w'
-      ) {
-        newX += dir.x;
-        newY += dir.y;
-      }
-
-      // Check if the new position is visited
-      if (!visited.has(`${newX},${newY}`)) {
-        queue.push({ x: newX, y: newY });
-        visited.add(`${newX},${newY}`);
-      }
-    }
-  }
-
-  return false;
-}
-
+// Check if the current level is solvable
 function isLevelSolvable(grid) {
   let player, key, door;
 
   for (let y = 0; y < grid.length; y++) {
     for (let x = 0; x < grid[y].length; x++) {
-      if (grid[y][x] === 'p') player = { x, y };
-      if (grid[y][x] === 'k') key = { x, y };
-      if (grid[y][x] === 'd') door = { x, y };
+      if (grid[y][x] === "p") player = { x, y };
+      if (grid[y][x] === "k") key = { x, y };
+      if (grid[y][x] === "d") door = { x, y };
     }
   }
 
@@ -384,18 +361,81 @@ function isLevelSolvable(grid) {
   return bfs(key, door, grid);
 }
 
+// Breadth-first search for pathfinding
+function bfs(start, end, grid) {
+  let queue = [start];
+  let visited = new Set();
+  visited.add(`${start.x},${start.y}`);
 
+  const directions = [
+    { x: 0, y: -1 }, // up
+    { x: 0, y: 1 }, // down
+    { x: -1, y: 0 }, // left
+    { x: 1, y: 0 }, // right
+  ];
+
+  while (queue.length > 0) {
+    let { x, y } = queue.shift();
+
+    if (x === end.x && y === end.y) {
+      return true;
+    }
+
+    for (let dir of directions) {
+      let newX = x;
+      let newY = y;
+
+      while (
+        newX + dir.x >= 0 &&
+        newX + dir.x < grid[0].length &&
+        newY + dir.y >= 0 &&
+        newY + dir.y < grid.length &&
+        grid[newY + dir.y][newX + dir.x] !== "w"
+      ) {
+        newX += dir.x;
+        newY += dir.y;
+      }
+
+      if (!visited.has(`${newX},${newY}`)) {
+        queue.push({ x: newX, y: newY });
+        visited.add(`${newX},${newY}`);
+      }
+    }
+  }
+
+  return false;
+}
+
+// Function to update the score display
+function updateScore() {
+  addText(`Score: ${score}`, { x: 1, y: 1, color: color`white`, id: "scoreDisplay" });
+}
+
+// Function to update the timer display
+function updateTimer() {
+  addText(`Time: ${timerSeconds}s`, { x: 1, y: 2, color: color`white`, id: "timerDisplay" });
+}
+
+// Function to switch modes between freeplay and progression
 function switchMode() {
+  clearInterval(timerInterval);
   if (mode == "freeplay") {
-    keysCollected = 0
+    keysCollected = 0;
+    score = 0;
+    levelSize += 2; // Increase level size
+    maxWallsPercentage += 0.05; // Increase max walls percentage
+    timerSeconds = 0;
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      updateTimer();
+    }, 1000);
 
     // Generate a level!
     let newLevel;
     do {
-      newLevel = generateLevel(10, 10); // or any other size
-    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
+      newLevel = generateLevel(levelSize, levelSize);
+    } while (!isLevelSolvable(newLevel.split("\n").map((row) => row.split(""))));
     setMap(map`${newLevel}`);
-
   } else if (mode === "progression") {
     currentLevelIndex++;
     if (currentLevelIndex < levels.length) {
@@ -404,23 +444,31 @@ function switchMode() {
       addText("You win!", { x: 4, y: 4, color: color`3` });
     }
   }
+
+  updateScore();
+  updateTimer();
 }
 
+// Function to move to the next level in freeplay mode
 function nextLevel() {
   if (mode == "freeplay") {
     // Generate a level!
     let newLevel;
     do {
-      newLevel = generateLevel(10, 10); // or any other size
+      newLevel = generateLevel(levelSize, levelSize); // or any other size
     } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
     setMap(map`${newLevel}`);
 
   } else if (mode == "progression") {
-    currentLevelIndex++;
-    if (currentLevelIndex < levels.length) {
-      setMap(levels[currentLevelIndex])
-    } else {
-      addText("You win!", { x: 4, y: 4, color: color`3` });
-    }
+  currentLevelIndex++;
+  if (currentLevelIndex < levels.length) {
+    setMap(levels[currentLevelIndex])
+  } else {
+    addText("You win!", { x: 4, y: 4, color: color`3` });
   }
+}
+
+// Initialize score and timer displays
+updateScore();
+updateTimer();
 }
