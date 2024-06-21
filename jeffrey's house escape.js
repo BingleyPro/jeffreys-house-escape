@@ -1,24 +1,28 @@
 /*
-@title: jeffrey's house escape
+@title: Jeffrey's House Escape
 @author: bingleypro
-@tags: []
+@tags: [fun]
 @addedOn: 2024-06-19
-(the date above refers to the 19th of june)
+(the date above refers to the 19th of June, 2024)
 */
 
-/* Define scene objects (these can be referenced in maps) */
+// Use WASD or the left Sprig d-pad to move the player! Get the key and make it to the end.
+// For more information, check out https://github.com/BingleyPro/jeffreys-house-escape
+
+// Define sprites and their corresponding characters
 const player = "p"
 const wall = "w"
 const door = "d"
 const key = "k"
+const freeplayPortal = "f"
+const progressionPortal = "g"
 
-/* Change level size */
-const levelWidth = 10
-const levelHeight = 10
+// Game variables
+let score = 0
+let mode = "freeplay" // default mode
+let keysCollected = 0
 
-var score = 0
-
-/* Setup sprites */
+// Define sprite bitmaps
 setLegend(
   [player, bitmap`
 ................
@@ -54,20 +58,98 @@ L00L00L00L00L00L
 L0L00L00L00L0L0L
 LL00L00L00L000LL
 LLLLLLLLLLLLLLLL`],
-  [door, bitmap``],
+  [door, bitmap`
+................
+................
+....CCCCCCCC....
+....CCCCCCCC....
+...CCCCCCCCCC...
+...CCCCCCCCCC...
+..CCCCCCCCCCCC..
+..CCCCCCCCCCCC..
+..CCCCCCCCCCCC..
+..CCCCCCCCC6CC..
+..CCCCCCCC6C6C..
+..CCCCCCCCC6CC..
+..CCCCCCCCCCCC..
+..CCCCCCCCCCCC..
+..CCCCCCCCCCCC..
+..CCCCCCCCCCCC..`],
+  [key, bitmap`
+................
+.......66666....
+.......66666....
+.......66.......
+.......66.......
+.......6666.....
+.......66.......
+.......66.......
+.......66.......
+.....66666......
+....6666666.....
+....66...66.....
+....66...66.....
+....66...66.....
+....6666666.....
+.....66666......`],
+  [freeplayPortal, bitmap`
+....66666666....
+...6699999966...
+..669999999966..
+.66999999999966.
+6699999999999966
+6999999999999996
+6999999999999996
+6999999999999996
+6999999999999996
+6999999999999996
+6999999999999996
+6699999999999966
+.66999999999966.
+..669999999966..
+...6699999966...
+....66666666....`],
+  [progressionPortal, bitmap`
+....55555555....
+...5577777755...
+..557777777755..
+.55777777777755.
+5577777777777755
+5777777777777775
+5777777777777775
+5777777777777775
+5777777777777775
+5777777777777775
+5777777777777775
+5577777777777755
+.55777777777755.
+..557777777755..
+...5577777755...
+....55555555....`]
 )
 
 setSolids([player, wall])
 
-/* Setup levels - only 1 is visible, rest are generated */
-let level = 0
+const startLevel = map`
+fwwwg
+.www.
+..p..
+wwwww` // Mode choosing
+
+// Define levels for progression mode
 const levels = [
+  map`
+.kwd.
+.www.
+.www.
+.www.
+..p..`,
   map`
 ...ww
 .w.ww
 ....k
 wwdwp`,
-/*  map`
+  map`
 d...w.
 www...
 w....w
@@ -107,15 +189,13 @@ ww.k...
 p..d...
 ...w...`,
   map`
-p.kdw`,*/
+p.kdw`,
 ]
 
-let hasKey = false;
+let currentLevelIndex = 0
+setMap(startLevel)
 
-const currentLevel = levels[level];
-setMap(levels[level]);
-
-/* Function to move the player in one direction as far as possible */
+// Function to move the player in one direction as far as possible
 function movePlayer(direction) {
   let player = getFirst("p");
   let moved = true;
@@ -134,15 +214,16 @@ function movePlayer(direction) {
       newX += 1;
     }
 
+    // Check boundaries and collision with walls
     if (newX < 0 || newY < 0 || newX >= width() || newY >= height() || getTile(newX, newY).some(sprite => sprite.type === "w")) {
       moved = false;
     } else {
       player.x = newX;
       player.y = newY;
 
-      /* Collect keys */
+      // Collect keys
       if (getTile(newX, newY).some(sprite => sprite.type === "k")) {
-        hasKey = true;
+        keysCollected++;
         getTile(newX, newY).forEach(sprite => {
           if (sprite.type === "k") sprite.remove();
         });
@@ -151,39 +232,86 @@ function movePlayer(direction) {
   }
 }
 
-/* Check for inputs - this should work on Sprig consoles as well */
+// Handle player movement based on input
 onInput("w", () => movePlayer("up"));
 onInput("a", () => movePlayer("left"));
 onInput("s", () => movePlayer("down"));
 onInput("d", () => movePlayer("right"));
 
-/* After completion, generate a new level */
+// After each input, check conditions for level completion or mode change
 afterInput(() => {
-  if (tilesWith(door, player).length > 0 && hasKey) {
-    level += 1;
-    score += 1;
+  // Check for portal tiles to switch modes
 
-    addText("Score:" + score, {
-      x: 10,
-      y: 4,
-      color: color`3`
-    })
+  if (tilesWith(freeplayPortal, player).length > 0) {
+    // Freeplay mode selected
+    mode = "freeplay"
+    switchMode()
 
-    // Generate a level!
-    generateNewLevel()
-    
-    const currentLevel = levels[level];
-    hasKey = false;
+  } else if (tilesWith(progressionPortal, player).length > 0) {
+    // Progression mode selected
+    mode = "progression"
+    switchMode()
+  }
 
-    if (currentLevel !== undefined) {
-      setMap(currentLevel);
-    } else {
-      addText("you win!", { y: 4, color: color`3` });
+  // Check conditions for completing a level in freeplay mode
+  if (mode == "freeplay") {
+    if (tilesWith(door, player).length > 0 && tilesWith(key) == 0) {
+      score++;
+      keysCollected = 0
+      nextLevel()
+    }
+  }
+
+  if (mode == "progression") {
+    if (tilesWith(door, player).length > 0 && tilesWith(key) == 0) {
+      score++;
+      keysCollected = 0;
+      nextLevel()
     }
   }
 });
 
-/* This is the path finding function used */
+/* --- FUNCTIONS --- */
+function switchMode() {
+  if (mode == "freeplay") {
+    keysCollected = 0
+
+    // Generate a level!
+    let newLevel;
+    do {
+      newLevel = generateLevel(10, 10); // or any other size
+    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
+    setMap(map`${newLevel}`);
+
+  } else if (mode === "progression") {
+    currentLevelIndex++;
+    if (currentLevelIndex < levels.length) {
+      setMap(levels[currentLevelIndex]); // Move to the next progression level
+    } else {
+      addText("You win!", { x: 4, y: 4, color: color`3` });
+    }
+  }
+}
+
+function nextLevel() {
+  if (mode == "freeplay") {
+    // Generate a level!
+    let newLevel;
+    do {
+      newLevel = generateLevel(10, 10); // or any other size
+    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
+    setMap(map`${newLevel}`);
+
+  } else if (mode == "progression") {
+    currentLevelIndex++;
+    if (currentLevelIndex < levels.length) {
+      setMap(levels[currentLevelIndex])
+    } else {
+      addText("You win!", { x: 4, y: 4, color: color`3` });
+    }
+  }
+
+/* --- PATH FINDING & GENERATING FUNCTIONS --- */
 function bfs(start, end, grid) {
   let queue = [start];
   let visited = new Set();
@@ -191,9 +319,9 @@ function bfs(start, end, grid) {
 
   const directions = [
     { x: 0, y: -1 }, // up
-    { x: 0, y: 1 },  // down
+    { x: 0, y: 1 }, // down
     { x: -1, y: 0 }, // left
-    { x: 1, y: 0 }   // right
+    { x: 1, y: 0 } // right
   ];
 
   while (queue.length > 0) {
@@ -207,7 +335,7 @@ function bfs(start, end, grid) {
     for (let dir of directions) {
       let newX = x;
       let newY = y;
-      
+
       while (
         newX + dir.x >= 0 && newX + dir.x < grid[0].length &&
         newY + dir.y >= 0 && newY + dir.y < grid.length &&
@@ -216,7 +344,7 @@ function bfs(start, end, grid) {
         newX += dir.x;
         newY += dir.y;
       }
-      
+
       // Check if the new position is visited
       if (!visited.has(`${newX},${newY}`)) {
         queue.push({ x: newX, y: newY });
@@ -248,6 +376,7 @@ function isLevelSolvable(grid) {
   return bfs(key, door, grid);
 }
 
+// Generate a new level for freeplay mode
 function generateLevel(width, height) {
   let newLevel = [];
   for (let y = 0; y < height; y++) {
@@ -257,7 +386,7 @@ function generateLevel(width, height) {
   function randomPosition() {
     return {
       x: Math.floor(Math.random() * width),
-      y: Math.floor(Math.random() * height),
+      y: Math.floor(Math.random() * height)
     };
   }
 
@@ -290,16 +419,4 @@ function generateLevel(width, height) {
 
   return newLevel.map(row => row.join("")).join("\n");
 }
-
-function generateNewLevel() {
-  // Generate a level!
-let newLevel;
-do {
-  newLevel = generateLevel(levelHeight, levelWidth);  // or any other size
-} while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
-
-levels.push(map`${newLevel}`);
-setMap(levels[level]);
 }
- 
-generateNewLevel()
