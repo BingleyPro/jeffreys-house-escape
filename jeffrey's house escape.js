@@ -12,6 +12,12 @@ const wall = "w"
 const door = "d"
 const key = "k"
 
+/* Change level size */
+const levelWidth = 10
+const levelHeight = 10
+
+var score = 0
+
 /* Setup sprites */
 setLegend(
   [player, bitmap`
@@ -48,40 +54,7 @@ L00L00L00L00L00L
 L0L00L00L00L0L0L
 LL00L00L00L000LL
 LLLLLLLLLLLLLLLL`],
-  [door, bitmap`
-................
-................
-....CCCCCCCC....
-....CCCCCCCC....
-...CCCCCCCCCC...
-...CCCCCCCCCC...
-..CCCCCCCCCCCC..
-..CCCCCCCCCCCC..
-..CCCCCCCCCCCC..
-..CCCCCCCCC6CC..
-..CCCCCCCC6C6C..
-..CCCCCCCCC6CC..
-..CCCCCCCCCCCC..
-..CCCCCCCCCCCC..
-..CCCCCCCCCCCC..
-..CCCCCCCCCCCC..`],
-  [key, bitmap`
-................
-.......66666....
-.......66666....
-.......66.......
-.......66.......
-.......6666.....
-.......66.......
-.......66.......
-.......66.......
-.....66666......
-....6666666.....
-....66...66.....
-....66...66.....
-....66...66.....
-....6666666.....
-.....66666......`],
+  [door, bitmap``],
 )
 
 setSolids([player, wall])
@@ -188,15 +161,16 @@ onInput("d", () => movePlayer("right"));
 afterInput(() => {
   if (tilesWith(door, player).length > 0 && hasKey) {
     level += 1;
+    score += 1;
+
+    addText("Score:" + score, {
+      x: 10,
+      y: 4,
+      color: color`3`
+    })
 
     // Generate a level!
-    let newLevel;
-    do {
-      newLevel = generateLevel(10, 10);  // change this to any size you like!
-    } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
-    
-    levels.push(map`${newLevel}`);
-    setMap(levels[level]);
+    generateNewLevel()
     
     const currentLevel = levels[level];
     hasKey = false;
@@ -317,11 +291,15 @@ function generateLevel(width, height) {
   return newLevel.map(row => row.join("")).join("\n");
 }
 
-// Generate a level!
+function generateNewLevel() {
+  // Generate a level!
 let newLevel;
 do {
-  newLevel = generateLevel(10, 10);  // or any other size
+  newLevel = generateLevel(levelHeight, levelWidth);  // or any other size
 } while (!isLevelSolvable(newLevel.split("\n").map(row => row.split(''))));
 
 levels.push(map`${newLevel}`);
 setMap(levels[level]);
+}
+ 
+generateNewLevel()
