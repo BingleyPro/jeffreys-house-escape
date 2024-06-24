@@ -490,7 +490,7 @@ function nextLevel() {
   if (currentLevelIndex < levels.length) {
     setMap(levels[currentLevelIndex])
   } else {
-    adda("You win!", { x: 4, y: 4, color: color`3` });
+    addText("You win!", { x: 4, y: 4, color: color`3` });
   }
 }
 
