@@ -192,6 +192,32 @@ p..d...
 ...w...`,
   map`
 p.kdw`,
+  map`
+.w.www.ww.ww
+w...w..www..
+.w....w.ww..
+...........w
+.w.......pww
+w...w..w....
+.w..d.w.ww..
+ww....w.w...
+w.w....www..
+.w.......w..
+...k...ww.w.
+w..w...w..ww`,
+  map`
+w.w.w..ww.w.
+.........ww.
+www..p..w.ww
+..w.w..w....
+....ww.....w
+....wwww...w
+..ww...w..w.
+wwww.w......
+..kw..ww.w..
+w..w.....ww.
+.w...w..ww..
+..w..w...w.d`
 ];
 
 setMap(startLevel);
@@ -408,12 +434,12 @@ function bfs(start, end, grid) {
 
 // Function to update the score display
 function updateScore() {
-  addText(`Score: ${score}`, { x: 1, y: 1, color: color`white`, id: "scoreDisplay" });
+  addText(`Score: ${score}`, { x: 1, y: 1, color: color`5`, id: "scoreDisplay" });
 }
 
 // Function to update the timer display
 function updateTimer() {
-  addText(`Time: ${timerSeconds}s`, { x: 1, y: 2, color: color`white`, id: "timerDisplay" });
+  addText(`Time: ${timerSeconds}s`, { x: 1, y: 2, color: color`5`, id: "timerDisplay" });
 }
 
 // Function to switch modes between freeplay and progression
@@ -464,7 +490,7 @@ function nextLevel() {
   if (currentLevelIndex < levels.length) {
     setMap(levels[currentLevelIndex])
   } else {
-    addText("You win!", { x: 4, y: 4, color: color`3` });
+    adda("You win!", { x: 4, y: 4, color: color`3` });
   }
 }
 
